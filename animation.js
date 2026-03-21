@@ -1,14 +1,14 @@
 /**
- * Canvas-based hand-drawn style animations for each personality archetype.
- * Each scene draws a unique animated illustration on the result canvas.
+ * Expressive, gestural canvas animations for each personality archetype.
+ * Inspired by: flowing ink lines, silhouettes, abstract expressionism, mixed-media art.
  */
 
 const PALETTES = {
-  warm:     { bg: '#faf3e6', colors: ['#e85d26', '#c0392b', '#d4883a', '#8b4513', '#f4a261'] },
-  bold:     { bg: '#fef9f0', colors: ['#e85d26', '#c0392b', '#6c3483', '#2874a6', '#f39c12'] },
-  earthy:   { bg: '#f0efe8', colors: ['#3a7d44', '#6b8e4e', '#8d6e63', '#a67c52', '#4a7c59'] },
-  sunset:   { bg: '#fef5ee', colors: ['#e85d26', '#f39c12', '#c2748b', '#eb7f6a', '#d4883a'] },
-  midnight: { bg: '#e8eaf0', colors: ['#3d5a80', '#293241', '#5c6b8a', '#7b8fb2', '#4a5568'] }
+  warm:     { bg: '#0f0a06', colors: ['#e85d26', '#f4a261', '#d4883a', '#c0392b', '#fff3e0'], glow: '#e85d26' },
+  bold:     { bg: '#0a0612', colors: ['#e85d26', '#ff3366', '#6c3483', '#00d4ff', '#f39c12'], glow: '#ff3366' },
+  earthy:   { bg: '#060a06', colors: ['#3a7d44', '#8bc34a', '#6b8e4e', '#a67c52', '#d4e157'], glow: '#3a7d44' },
+  sunset:   { bg: '#0f0806', colors: ['#e85d26', '#ff6b6b', '#feca57', '#c2748b', '#ff9ff3'], glow: '#ff6b6b' },
+  midnight: { bg: '#060810', colors: ['#3d5a80', '#7b8fb2', '#98c1d9', '#e0fbfc', '#293241'], glow: '#3d5a80' }
 };
 
 class AnimationRenderer {
@@ -17,7 +17,9 @@ class AnimationRenderer {
     this.ctx = canvas.getContext('2d');
     this.animationId = null;
     this.time = 0;
-    this.particles = [];
+    this.strokes = [];
+    this.silhouettePaths = [];
+    this.flowField = [];
   }
 
   start(result) {
@@ -36,7 +38,7 @@ class AnimationRenderer {
     this.scene = result.archetype.scene;
     this.traits = result.traits;
 
-    this._initParticles();
+    this._initScene();
     this._loop();
   }
 
@@ -48,542 +50,724 @@ class AnimationRenderer {
   }
 
   _loop() {
-    this.time += 0.016;
+    this.time += 0.012;
     this._draw();
     this.animationId = requestAnimationFrame(() => this._loop());
   }
 
-  _initParticles() {
-    this.particles = [];
-    const count = 40 + Math.floor(Math.random() * 20);
+  _initScene() {
+    this.strokes = [];
+    this.flowParticles = [];
+
+    // Create flowing ink strokes
+    const count = 15 + Math.floor(Math.random() * 10);
     for (let i = 0; i < count; i++) {
-      this.particles.push({
+      this.strokes.push({
+        points: this._generateCurve(),
+        color: this.palette.colors[i % this.palette.colors.length],
+        width: 1 + Math.random() * 4,
+        speed: 0.3 + Math.random() * 0.7,
+        offset: Math.random() * Math.PI * 2,
+        opacity: 0.3 + Math.random() * 0.5,
+        dash: Math.random() > 0.7
+      });
+    }
+
+    // Flow field particles
+    for (let i = 0; i < 80; i++) {
+      this.flowParticles.push({
         x: Math.random() * this.w,
         y: Math.random() * this.h,
-        size: 2 + Math.random() * 6,
-        speed: 0.2 + Math.random() * 0.8,
-        angle: Math.random() * Math.PI * 2,
-        wobble: Math.random() * Math.PI * 2,
+        vx: 0, vy: 0,
+        life: Math.random(),
+        maxLife: 0.5 + Math.random() * 0.5,
         color: this.palette.colors[Math.floor(Math.random() * this.palette.colors.length)],
-        shape: Math.random() > 0.5 ? 'circle' : 'star'
+        size: 1 + Math.random() * 3
       });
     }
   }
 
+  _generateCurve() {
+    const points = [];
+    const segments = 5 + Math.floor(Math.random() * 5);
+    let x = Math.random() * this.w;
+    let y = Math.random() * this.h;
+    for (let i = 0; i < segments; i++) {
+      points.push({ x, y });
+      x += (Math.random() - 0.5) * this.w * 0.5;
+      y += (Math.random() - 0.5) * this.h * 0.5;
+    }
+    return points;
+  }
+
   _draw() {
     const { ctx, w, h } = this;
-    ctx.clearRect(0, 0, w, h);
 
-    // Background
+    // Fade trail
     ctx.fillStyle = this.palette.bg;
+    ctx.globalAlpha = 0.08;
     ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
 
     switch (this.scene) {
-      case 'cozy-room':   this._drawCozyRoom(); break;
-      case 'studio':      this._drawStudio(); break;
-      case 'nature-path': this._drawNaturePath(); break;
-      case 'gathering':   this._drawGathering(); break;
-      case 'night-room':  this._drawNightRoom(); break;
-      default:            this._drawCozyRoom(); break;
+      case 'cozy-room':   this._drawCozyDreamer(); break;
+      case 'studio':      this._drawWildCreative(); break;
+      case 'nature-path': this._drawGentleWanderer(); break;
+      case 'gathering':   this._drawWarmConnector(); break;
+      case 'night-room':  this._drawMidnightThinker(); break;
+      default:            this._drawCozyDreamer(); break;
     }
-
-    this._drawParticles();
   }
 
-  // ─── Scene: Cozy Room ─────────────────────────────────
-  _drawCozyRoom() {
-    const { ctx, w, h, time } = this;
-    const colors = this.palette.colors;
+  // ─── Cozy Dreamer: Slow floating orbs, gentle curves, warm glow ──
+  _drawCozyDreamer() {
+    const { ctx, w, h, time, palette } = this;
 
-    // Floor
-    ctx.fillStyle = '#e8dcc8';
-    ctx.fillRect(0, h * 0.65, w, h * 0.35);
-
-    // Window
-    const wx = w * 0.6, wy = h * 0.1, ww = w * 0.3, wh = h * 0.35;
-    ctx.strokeStyle = colors[3] || '#8b4513';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(wx, wy, ww, wh);
-    ctx.beginPath(); ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(wx, wy + wh / 2); ctx.lineTo(wx + ww, wy + wh / 2); ctx.stroke();
-
-    // Moon/sun glow through window
-    const glow = ctx.createRadialGradient(wx + ww / 2, wy + wh / 3, 5, wx + ww / 2, wy + wh / 3, ww * 0.4);
-    glow.addColorStop(0, 'rgba(244, 162, 97, 0.4)');
-    glow.addColorStop(1, 'rgba(244, 162, 97, 0)');
+    // Warm central glow
+    const glow = ctx.createRadialGradient(w * 0.4, h * 0.5, 0, w * 0.4, h * 0.5, w * 0.5);
+    glow.addColorStop(0, 'rgba(232, 93, 38, 0.06)');
+    glow.addColorStop(1, 'rgba(232, 93, 38, 0)');
     ctx.fillStyle = glow;
-    ctx.fillRect(wx, wy, ww, wh);
-
-    // Armchair
-    this._drawWobblyRect(ctx, w * 0.08, h * 0.42, w * 0.3, h * 0.28, colors[0], time);
-
-    // Book stack
-    for (let i = 0; i < 4; i++) {
-      const bw = 25 + Math.random() * 15;
-      ctx.fillStyle = colors[i % colors.length];
-      this._drawWobblyRect(ctx, w * 0.42 + (i % 2) * 3, h * 0.52 - i * 14, bw, 12, colors[i % colors.length], time + i);
-    }
-
-    // Steam from cup
-    const cupX = w * 0.45, cupY = h * 0.52;
-    ctx.fillStyle = colors[0];
-    ctx.beginPath();
-    ctx.ellipse(cupX, cupY + 10, 10, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-    for (let i = 0; i < 3; i++) {
-      const sx = cupX - 5 + i * 5;
-      const sy = cupY - 5 - i * 12;
-      ctx.strokeStyle = 'rgba(200, 180, 160, 0.5)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(sx, cupY);
-      ctx.quadraticCurveTo(sx + Math.sin(time * 2 + i) * 8, sy + 5, sx + Math.sin(time * 1.5 + i) * 4, sy - 10);
-      ctx.stroke();
-    }
-
-    // Cat on chair
-    this._drawCat(w * 0.18, h * 0.42, colors[3] || '#5a3a1a', time);
-
-    // Rug
-    ctx.strokeStyle = colors[4] || colors[0];
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(w * 0.35, h * 0.78, w * 0.22, h * 0.06, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  // ─── Scene: Studio ────────────────────────────────────
-  _drawStudio() {
-    const { ctx, w, h, time } = this;
-    const colors = this.palette.colors;
-
-    // Floor
-    ctx.fillStyle = '#e8e0d0';
-    ctx.fillRect(0, h * 0.7, w, h * 0.3);
-
-    // Easel
-    const ex = w * 0.5, ey = h * 0.15;
-    ctx.strokeStyle = colors[3] || '#8b4513';
-    ctx.lineWidth = 3;
-    // Easel legs
-    ctx.beginPath(); ctx.moveTo(ex - 30, ey + 10); ctx.lineTo(ex - 50, h * 0.7); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ex + 30, ey + 10); ctx.lineTo(ex + 50, h * 0.7); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ex, ey + 10); ctx.lineTo(ex, h * 0.72); ctx.stroke();
-
-    // Canvas on easel
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(ex - 55, ey, 110, h * 0.35);
-    ctx.strokeStyle = colors[3] || '#333';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(ex - 55, ey, 110, h * 0.35);
-
-    // Paint splotches on canvas
-    for (let i = 0; i < 5; i++) {
-      const px = ex - 40 + Math.sin(i * 1.7) * 30;
-      const py = ey + 20 + Math.cos(i * 2.1) * (h * 0.12);
-      const radius = 8 + Math.sin(time + i) * 3;
-      ctx.fillStyle = colors[i % colors.length];
-      ctx.beginPath();
-      ctx.arc(px, py, radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Paint jars on floor
-    for (let i = 0; i < 4; i++) {
-      const jx = w * 0.15 + i * 30;
-      ctx.fillStyle = colors[i % colors.length];
-      ctx.fillRect(jx, h * 0.62, 16, 22);
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(jx, h * 0.62, 16, 22);
-    }
-
-    // Brushes
-    for (let i = 0; i < 3; i++) {
-      const bx = w * 0.75 + i * 12;
-      ctx.strokeStyle = colors[3] || '#5a3a1a';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(bx, h * 0.55);
-      ctx.lineTo(bx + Math.sin(time * 0.5 + i) * 2, h * 0.7);
-      ctx.stroke();
-      ctx.fillStyle = colors[i % colors.length];
-      ctx.beginPath();
-      ctx.arc(bx, h * 0.54, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Scattered paint drops on floor
-    for (let i = 0; i < 8; i++) {
-      ctx.fillStyle = colors[i % colors.length];
-      ctx.globalAlpha = 0.4;
-      ctx.beginPath();
-      ctx.arc(w * 0.2 + i * w * 0.08, h * 0.76 + Math.sin(i) * 10, 3 + Math.sin(time + i) * 1, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  // ─── Scene: Nature Path ───────────────────────────────
-  _drawNaturePath() {
-    const { ctx, w, h, time } = this;
-    const colors = this.palette.colors;
-
-    // Sky gradient
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.6);
-    skyGrad.addColorStop(0, '#d4e8f0');
-    skyGrad.addColorStop(1, '#e8f0e4');
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, w, h * 0.6);
-
-    // Rolling hills
-    for (let layer = 0; layer < 3; layer++) {
-      ctx.fillStyle = colors[layer % colors.length];
-      ctx.globalAlpha = 0.3 + layer * 0.2;
-      ctx.beginPath();
-      ctx.moveTo(0, h * (0.45 + layer * 0.1));
-      for (let x = 0; x <= w; x += 20) {
-        const y = h * (0.45 + layer * 0.1) + Math.sin(x * 0.008 + layer * 2 + time * 0.2) * 25;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-    // Ground
-    ctx.fillStyle = '#c8dbb0';
-    ctx.fillRect(0, h * 0.65, w, h * 0.35);
-
-    // Path
-    ctx.strokeStyle = '#b8a88a';
-    ctx.lineWidth = 30;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(w * 0.5, h);
-    ctx.quadraticCurveTo(w * 0.45, h * 0.7, w * 0.52, h * 0.5);
-    ctx.quadraticCurveTo(w * 0.55, h * 0.4, w * 0.48, h * 0.3);
-    ctx.stroke();
-
-    // Trees
-    this._drawTree(w * 0.15, h * 0.45, colors[0], time);
-    this._drawTree(w * 0.8, h * 0.42, colors[1], time + 1);
-    this._drawTree(w * 0.65, h * 0.5, colors[2] || colors[0], time + 2);
-
-    // Wildflowers
-    for (let i = 0; i < 12; i++) {
-      const fx = w * 0.1 + Math.sin(i * 3.7) * w * 0.4;
-      const fy = h * 0.68 + Math.cos(i * 2.3) * h * 0.1;
-      const sway = Math.sin(time * 1.5 + i) * 3;
-      ctx.fillStyle = colors[i % colors.length];
-      ctx.beginPath();
-      ctx.arc(fx + sway, fy, 3 + Math.sin(time + i) * 1, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = colors[0];
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(fx + sway, fy + 3);
-      ctx.lineTo(fx, fy + 15);
-      ctx.stroke();
-    }
-
-    // Clouds
-    this._drawCloud(w * 0.2 + Math.sin(time * 0.3) * 10, h * 0.1);
-    this._drawCloud(w * 0.7 + Math.sin(time * 0.2 + 1) * 10, h * 0.15);
-  }
-
-  // ─── Scene: Gathering ─────────────────────────────────
-  _drawGathering() {
-    const { ctx, w, h, time } = this;
-    const colors = this.palette.colors;
-
-    // Night sky
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.5);
-    skyGrad.addColorStop(0, '#1a1a2e');
-    skyGrad.addColorStop(1, '#3d2c5e');
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, w, h * 0.5);
-
-    // Stars
-    for (let i = 0; i < 20; i++) {
-      const sx = (i * 47 + 13) % w;
-      const sy = (i * 31 + 7) % (h * 0.45);
-      const twinkle = 0.5 + Math.sin(time * 2 + i * 0.7) * 0.5;
-      ctx.fillStyle = `rgba(255, 255, 220, ${twinkle})`;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Rooftop/ground
-    ctx.fillStyle = '#4a3a2a';
-    ctx.fillRect(0, h * 0.5, w, h * 0.5);
-
-    // Fairy lights string
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(w * 0.05, h * 0.35);
-    for (let x = w * 0.05; x <= w * 0.95; x += 10) {
-      const sag = Math.sin((x / w) * Math.PI) * 30;
-      ctx.lineTo(x, h * 0.35 + sag);
-    }
-    ctx.stroke();
-
-    // Light bulbs
-    for (let i = 0; i < 12; i++) {
-      const lx = w * 0.1 + i * (w * 0.075);
-      const sag = Math.sin(((lx) / w) * Math.PI) * 30;
-      const ly = h * 0.35 + sag + 5;
-      const flicker = 0.7 + Math.sin(time * 3 + i * 1.2) * 0.3;
-      const glow = ctx.createRadialGradient(lx, ly, 0, lx, ly, 15);
-      glow.addColorStop(0, `rgba(255, 220, 100, ${flicker})`);
-      glow.addColorStop(1, 'rgba(255, 220, 100, 0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(lx - 15, ly - 15, 30, 30);
-      ctx.fillStyle = `rgba(255, 230, 150, ${flicker})`;
-      ctx.beginPath();
-      ctx.arc(lx, ly, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Stick figures sitting in a circle
-    const cx = w * 0.5, cy = h * 0.65;
-    for (let i = 0; i < 5; i++) {
-      const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
-      const px = cx + Math.cos(angle) * 60;
-      const py = cy + Math.sin(angle) * 30;
-      const bobble = Math.sin(time * 1.5 + i * 1.3) * 2;
-      this._drawStickPerson(px, py + bobble, colors[i % colors.length]);
-    }
-
-    // Table in center
-    ctx.fillStyle = '#6b4226';
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, 30, 15, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
-
-  // ─── Scene: Night Room ────────────────────────────────
-  _drawNightRoom() {
-    const { ctx, w, h, time } = this;
-    const colors = this.palette.colors;
-
-    // Dark room
-    const roomGrad = ctx.createLinearGradient(0, 0, 0, h);
-    roomGrad.addColorStop(0, '#1a1a2e');
-    roomGrad.addColorStop(1, '#293241');
-    ctx.fillStyle = roomGrad;
     ctx.fillRect(0, 0, w, h);
 
-    // Large window with night sky
-    const wx = w * 0.35, wy = h * 0.05, ww = w * 0.55, wh = h * 0.55;
-    ctx.fillStyle = '#0d1b2a';
-    ctx.fillRect(wx, wy, ww, wh);
+    // Slow breathing circles
+    for (let i = 0; i < 8; i++) {
+      const cx = w * (0.2 + (i * 0.09));
+      const cy = h * 0.5 + Math.sin(time * 0.5 + i * 0.8) * h * 0.2;
+      const r = 20 + Math.sin(time * 0.3 + i) * 10;
+      const alpha = 0.15 + Math.sin(time * 0.4 + i * 0.5) * 0.1;
 
-    // Moon
-    const moonX = wx + ww * 0.7, moonY = wy + wh * 0.3;
-    const moonGlow = ctx.createRadialGradient(moonX, moonY, 10, moonX, moonY, 60);
-    moonGlow.addColorStop(0, 'rgba(200, 210, 240, 0.6)');
-    moonGlow.addColorStop(1, 'rgba(200, 210, 240, 0)');
-    ctx.fillStyle = moonGlow;
-    ctx.fillRect(moonX - 60, moonY - 60, 120, 120);
-    ctx.fillStyle = '#dde4f0';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = palette.colors[i % palette.colors.length];
+      ctx.globalAlpha = alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Gentle flowing curves — like yarn or blanket folds
+    ctx.lineCap = 'round';
+    for (const stroke of this.strokes) {
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width;
+      ctx.globalAlpha = stroke.opacity * 0.6;
+
+      const pts = stroke.points;
+      const t = time * stroke.speed + stroke.offset;
+      ctx.moveTo(
+        pts[0].x + Math.sin(t) * 20,
+        pts[0].y + Math.cos(t * 0.7) * 15
+      );
+      for (let i = 1; i < pts.length; i++) {
+        const px = pts[i].x + Math.sin(t + i) * 25;
+        const py = pts[i].y + Math.cos(t * 0.6 + i) * 20;
+        const cpx = (pts[i - 1].x + px) / 2 + Math.sin(t + i * 2) * 30;
+        const cpy = (pts[i - 1].y + py) / 2 + Math.cos(t + i * 2) * 20;
+        ctx.quadraticCurveTo(cpx, cpy, px, py);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Silhouette: curled figure
+    this._drawCurledSilhouette(w * 0.5, h * 0.55, time);
+
+    // Floating dust motes
+    this._drawFlowParticles();
+  }
+
+  // ─── Wild Creative: Explosive gestural strokes, paint splatters ──
+  _drawWildCreative() {
+    const { ctx, w, h, time, palette } = this;
+
+    // Energy burst center
+    const burst = ctx.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.45, w * 0.6);
+    burst.addColorStop(0, 'rgba(255, 51, 102, 0.04)');
+    burst.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = burst;
+    ctx.fillRect(0, 0, w, h);
+
+    // Wild gestural strokes — fast, expressive
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const stroke of this.strokes) {
+      const t = time * stroke.speed * 1.5 + stroke.offset;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width * 1.5;
+      ctx.globalAlpha = stroke.opacity * 0.7;
+
+      if (stroke.dash) {
+        ctx.setLineDash([8, 12]);
+      }
+
+      const pts = stroke.points;
+      const ox = Math.sin(t * 2) * 40;
+      const oy = Math.cos(t * 1.5) * 30;
+      ctx.moveTo(pts[0].x + ox, pts[0].y + oy);
+      for (let i = 1; i < pts.length; i++) {
+        const px = pts[i].x + Math.sin(t * 2 + i * 3) * 50;
+        const py = pts[i].y + Math.cos(t * 1.8 + i * 2) * 40;
+        ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = 1;
+
+    // Paint splatters
+    for (let i = 0; i < 12; i++) {
+      const sx = w * (0.1 + Math.sin(i * 2.3 + time * 0.3) * 0.4 + 0.4);
+      const sy = h * (0.1 + Math.cos(i * 1.7 + time * 0.2) * 0.4 + 0.4);
+      const r = 3 + Math.sin(time * 2 + i) * 4;
+      ctx.fillStyle = palette.colors[i % palette.colors.length];
+      ctx.globalAlpha = 0.4 + Math.sin(time + i) * 0.2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, Math.abs(r), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Dancing silhouette
+    this._drawDancingSilhouette(w * 0.5, h * 0.5, time);
+
+    this._drawFlowParticles();
+  }
+
+  // ─── Gentle Wanderer: Organic flow, nature lines, drifting ──
+  _drawGentleWanderer() {
+    const { ctx, w, h, time, palette } = this;
+
+    // Soft horizon gradient glow
+    const horizon = ctx.createLinearGradient(0, h * 0.3, 0, h * 0.7);
+    horizon.addColorStop(0, 'rgba(58, 125, 68, 0.03)');
+    horizon.addColorStop(0.5, 'rgba(58, 125, 68, 0.06)');
+    horizon.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = horizon;
+    ctx.fillRect(0, 0, w, h);
+
+    // Organic flowing lines — like grass or wind
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 30; i++) {
+      const baseX = (i / 30) * w;
+      const baseY = h * 0.6;
+      const t = time * 0.8 + i * 0.3;
+
+      ctx.beginPath();
+      ctx.strokeStyle = palette.colors[i % palette.colors.length];
+      ctx.lineWidth = 1 + Math.sin(i) * 0.5;
+      ctx.globalAlpha = 0.2 + Math.sin(t) * 0.1;
+
+      ctx.moveTo(baseX, baseY);
+      const swayX = Math.sin(t) * 30;
+      const swayY = -40 - Math.sin(t * 0.5 + i) * 30;
+      ctx.quadraticCurveTo(
+        baseX + swayX * 0.5, baseY + swayY * 0.5,
+        baseX + swayX, baseY + swayY
+      );
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Gentle flowing curves
+    for (const stroke of this.strokes) {
+      const t = time * stroke.speed * 0.5 + stroke.offset;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width * 0.8;
+      ctx.globalAlpha = stroke.opacity * 0.4;
+
+      const pts = stroke.points;
+      ctx.moveTo(
+        pts[0].x + Math.sin(t) * 15,
+        pts[0].y + Math.cos(t * 0.6) * 10
+      );
+      for (let i = 1; i < pts.length; i++) {
+        const px = pts[i].x + Math.sin(t + i * 0.7) * 15;
+        const py = pts[i].y + Math.cos(t * 0.5 + i * 0.7) * 12;
+        const cpx = (pts[i - 1].x + px) / 2;
+        const cpy = (pts[i - 1].y + py) / 2 + Math.sin(t + i) * 15;
+        ctx.quadraticCurveTo(cpx, cpy, px, py);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Walking figure silhouette
+    this._drawWalkingSilhouette(w * 0.45, h * 0.48, time);
+
+    // Birds in the distance
+    for (let i = 0; i < 5; i++) {
+      const bx = w * (0.3 + i * 0.1) + Math.sin(time * 0.5 + i) * 20;
+      const by = h * 0.2 + Math.sin(time * 0.3 + i * 2) * 15;
+      this._drawBird(bx, by, 8, time + i, palette.colors[2]);
+    }
+
+    this._drawFlowParticles();
+  }
+
+  // ─── Warm Connector: Radiating connections, linked nodes ──
+  _drawWarmConnector() {
+    const { ctx, w, h, time, palette } = this;
+
+    // Warm center glow
+    const glow = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, w * 0.4);
+    glow.addColorStop(0, 'rgba(232, 93, 38, 0.05)');
+    glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, w, h);
+
+    // Connected node network
+    const nodes = [];
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2 + time * 0.15;
+      const radius = w * 0.2 + Math.sin(time * 0.3 + i * 0.5) * w * 0.08;
+      nodes.push({
+        x: w * 0.5 + Math.cos(angle) * radius,
+        y: h * 0.5 + Math.sin(angle) * radius * 0.7,
+        color: palette.colors[i % palette.colors.length]
+      });
+    }
+
+    // Draw connections
+    ctx.lineCap = 'round';
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dist = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y);
+        if (dist < w * 0.3) {
+          ctx.beginPath();
+          ctx.strokeStyle = nodes[i].color;
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.1 * (1 - dist / (w * 0.3));
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw nodes
+    for (const node of nodes) {
+      const pulse = 4 + Math.sin(time * 2) * 2;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, pulse, 0, Math.PI * 2);
+      ctx.fillStyle = node.color;
+      ctx.globalAlpha = 0.6;
+      ctx.fill();
+
+      // Glow ring
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, pulse + 6, 0, Math.PI * 2);
+      ctx.strokeStyle = node.color;
+      ctx.lineWidth = 0.5;
+      ctx.globalAlpha = 0.2;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Flowing strokes
+    for (const stroke of this.strokes) {
+      const t = time * stroke.speed + stroke.offset;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width * 0.7;
+      ctx.globalAlpha = stroke.opacity * 0.3;
+
+      const pts = stroke.points;
+      ctx.moveTo(pts[0].x + Math.sin(t) * 15, pts[0].y + Math.cos(t) * 10);
+      for (let i = 1; i < pts.length; i++) {
+        const px = pts[i].x + Math.sin(t + i) * 20;
+        const py = pts[i].y + Math.cos(t + i) * 15;
+        ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Group silhouette
+    this._drawGroupSilhouette(w * 0.5, h * 0.55, time);
+
+    this._drawFlowParticles();
+  }
+
+  // ─── Midnight Thinker: Stars, constellations, thought streams ──
+  _drawMidnightThinker() {
+    const { ctx, w, h, time, palette } = this;
+
+    // Stars
+    for (let i = 0; i < 60; i++) {
+      const sx = (i * 67 + 13) % w;
+      const sy = (i * 43 + 7) % h;
+      const twinkle = 0.2 + Math.sin(time * 1.5 + i * 0.9) * 0.3;
+      const size = 1 + Math.sin(i * 0.3) * 0.5;
+      ctx.fillStyle = palette.colors[i % palette.colors.length];
+      ctx.globalAlpha = twinkle;
+      ctx.beginPath();
+      ctx.arc(sx, sy, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Constellation lines
+    const constellationNodes = [];
+    for (let i = 0; i < 8; i++) {
+      constellationNodes.push({
+        x: w * (0.25 + Math.sin(i * 1.2) * 0.25),
+        y: h * (0.2 + Math.cos(i * 1.7) * 0.2)
+      });
+    }
+    ctx.strokeStyle = palette.colors[2];
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.15 + Math.sin(time * 0.5) * 0.05;
     ctx.beginPath();
-    ctx.arc(moonX, moonY, 18, 0, Math.PI * 2);
+    for (let i = 0; i < constellationNodes.length; i++) {
+      const n = constellationNodes[i];
+      if (i === 0) ctx.moveTo(n.x, n.y);
+      else ctx.lineTo(n.x, n.y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Thought streams — spiraling lines
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.strokeStyle = palette.colors[i % palette.colors.length];
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.2;
+      const cx = w * 0.55 + i * 10;
+      const cy = h * 0.35;
+      for (let a = 0; a < Math.PI * 4; a += 0.1) {
+        const r = a * 5 + Math.sin(time + i) * 5;
+        const px = cx + Math.cos(a + time * 0.3 + i) * r;
+        const py = cy + Math.sin(a + time * 0.3 + i) * r * 0.6;
+        if (a === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Flowing strokes
+    for (const stroke of this.strokes) {
+      const t = time * stroke.speed * 0.4 + stroke.offset;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width * 0.5;
+      ctx.globalAlpha = stroke.opacity * 0.25;
+
+      const pts = stroke.points;
+      ctx.moveTo(pts[0].x + Math.sin(t) * 10, pts[0].y + Math.cos(t) * 8);
+      for (let j = 1; j < pts.length; j++) {
+        const px = pts[j].x + Math.sin(t + j) * 12;
+        const py = pts[j].y + Math.cos(t * 0.7 + j) * 10;
+        const cpx = (pts[j - 1].x + px) / 2;
+        const cpy = (pts[j - 1].y + py) / 2;
+        ctx.quadraticCurveTo(cpx, cpy, px, py);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Seated thinking silhouette
+    this._drawThinkingSilhouette(w * 0.35, h * 0.6, time);
+
+    this._drawFlowParticles();
+  }
+
+  // ─── Silhouettes ──────────────────────────────────────
+
+  _drawCurledSilhouette(x, y, t) {
+    const { ctx } = this;
+    const breathe = Math.sin(t * 0.8) * 3;
+    ctx.fillStyle = this.palette.colors[0];
+    ctx.globalAlpha = 0.7;
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Curled up figure — abstract organic shape
+    ctx.beginPath();
+    ctx.moveTo(-30, 10 + breathe);
+    ctx.bezierCurveTo(-35, -15 + breathe, -15, -35 + breathe, 5, -30 + breathe);
+    ctx.bezierCurveTo(25, -25 + breathe, 30, -10, 25, 10);
+    ctx.bezierCurveTo(20, 25, 0, 30, -15, 25);
+    ctx.bezierCurveTo(-25, 20, -28, 15, -30, 10 + breathe);
     ctx.fill();
 
-    // Stars in window
-    for (let i = 0; i < 15; i++) {
-      const sx = wx + 15 + (i * 37) % (ww - 30);
-      const sy = wy + 10 + (i * 23) % (wh - 20);
-      const twinkle = 0.4 + Math.sin(time * 2.5 + i) * 0.4;
-      ctx.fillStyle = `rgba(200, 210, 240, ${twinkle})`;
+    // Head
+    ctx.beginPath();
+    ctx.arc(-5, -28 + breathe, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  _drawDancingSilhouette(x, y, t) {
+    const { ctx } = this;
+    ctx.fillStyle = this.palette.colors[1];
+    ctx.globalAlpha = 0.75;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.sin(t * 1.2) * 0.1);
+
+    const legSwing = Math.sin(t * 2) * 15;
+    const armSwing = Math.sin(t * 2 + 0.5) * 25;
+
+    // Body
+    ctx.beginPath();
+    ctx.moveTo(0, -40);
+    ctx.bezierCurveTo(-15, -20, -10, 10, -5 + legSwing, 50);
+    ctx.lineTo(5 - legSwing, 50);
+    ctx.bezierCurveTo(10, 10, 15, -20, 0, -40);
+    ctx.fill();
+
+    // Head
+    ctx.beginPath();
+    ctx.arc(0, -52, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Arms — gestural lines
+    ctx.strokeStyle = this.palette.colors[1];
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-8, -25);
+    ctx.quadraticCurveTo(-30 - armSwing, -40, -45 - armSwing, -20);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(8, -25);
+    ctx.quadraticCurveTo(30 + armSwing, -45, 50 + armSwing, -30);
+    ctx.stroke();
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  _drawWalkingSilhouette(x, y, t) {
+    const { ctx } = this;
+    ctx.fillStyle = this.palette.colors[0];
+    ctx.globalAlpha = 0.6;
+    ctx.save();
+    ctx.translate(x, y);
+
+    const stride = Math.sin(t * 1.5) * 12;
+    const bob = Math.abs(Math.sin(t * 1.5)) * 3;
+
+    // Body
+    ctx.beginPath();
+    ctx.moveTo(0, -35 - bob);
+    ctx.bezierCurveTo(-10, -15, -8, 15, stride, 45);
+    ctx.lineTo(-stride, 45);
+    ctx.bezierCurveTo(8, 15, 10, -15, 0, -35 - bob);
+    ctx.fill();
+
+    // Head
+    ctx.beginPath();
+    ctx.arc(0, -48 - bob, 13, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Legs as simple strokes
+    ctx.strokeStyle = this.palette.colors[0];
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-2, 20);
+    ctx.lineTo(stride, 50);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(2, 20);
+    ctx.lineTo(-stride, 50);
+    ctx.stroke();
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  _drawGroupSilhouette(x, y, t) {
+    const { ctx, palette } = this;
+    ctx.globalAlpha = 0.6;
+    const positions = [
+      { dx: -50, dy: 0 }, { dx: -20, dy: -10 }, { dx: 15, dy: 5 },
+      { dx: 45, dy: -5 }, { dx: -35, dy: 15 }
+    ];
+    for (let i = 0; i < positions.length; i++) {
+      const p = positions[i];
+      const bob = Math.sin(t * 1.2 + i * 1.3) * 4;
+      ctx.fillStyle = palette.colors[i % palette.colors.length];
+      ctx.save();
+      ctx.translate(x + p.dx, y + p.dy + bob);
+
+      // Simple abstract person shape
       ctx.beginPath();
-      ctx.arc(sx, sy, 1.2, 0, Math.PI * 2);
+      ctx.arc(0, -22, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -13);
+      ctx.bezierCurveTo(-8, 0, -6, 15, -4, 28);
+      ctx.lineTo(4, 28);
+      ctx.bezierCurveTo(6, 15, 8, 0, 0, -13);
+      ctx.fill();
+
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  _drawThinkingSilhouette(x, y, t) {
+    const { ctx } = this;
+    ctx.fillStyle = this.palette.colors[0];
+    ctx.globalAlpha = 0.6;
+    ctx.save();
+    ctx.translate(x, y);
+
+    const breathe = Math.sin(t * 0.6) * 2;
+
+    // Seated figure — hunched forward
+    ctx.beginPath();
+    ctx.moveTo(5, -30 + breathe);
+    ctx.bezierCurveTo(-15, -20, -20, 0, -15, 20);
+    ctx.lineTo(20, 20);
+    ctx.bezierCurveTo(25, 0, 20, -15, 5, -30 + breathe);
+    ctx.fill();
+
+    // Head resting on hand
+    ctx.beginPath();
+    ctx.arc(-5, -40 + breathe, 13, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Arm to chin
+    ctx.strokeStyle = this.palette.colors[0];
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-12, -30 + breathe);
+    ctx.quadraticCurveTo(-25, -20, -20, -5);
+    ctx.stroke();
+
+    // Thought bubbles
+    for (let i = 0; i < 4; i++) {
+      const bx = 15 + i * 12;
+      const by = -55 - i * 15 + Math.sin(t + i) * 5;
+      const br = 3 + i * 1.5;
+      ctx.fillStyle = this.palette.colors[2];
+      ctx.globalAlpha = 0.2 + i * 0.05;
+      ctx.beginPath();
+      ctx.arc(bx, by + breathe, br, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Window frame
-    ctx.strokeStyle = colors[1] || '#5c6b8a';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(wx, wy, ww, wh);
-    ctx.beginPath(); ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh); ctx.stroke();
-
-    // Desk
-    ctx.fillStyle = '#3d3028';
-    ctx.fillRect(w * 0.05, h * 0.62, w * 0.55, 8);
-    // Desk legs
-    ctx.fillRect(w * 0.08, h * 0.62, 6, h * 0.2);
-    ctx.fillRect(w * 0.52, h * 0.62, 6, h * 0.2);
-
-    // Lamp with glow
-    const lampX = w * 0.15, lampY = h * 0.42;
-    ctx.strokeStyle = '#555';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(lampX, h * 0.62); ctx.lineTo(lampX, lampY); ctx.stroke();
-    const lampGlow = ctx.createRadialGradient(lampX, lampY, 3, lampX, lampY + 15, 50);
-    lampGlow.addColorStop(0, 'rgba(255, 210, 140, 0.5)');
-    lampGlow.addColorStop(1, 'rgba(255, 210, 140, 0)');
-    ctx.fillStyle = lampGlow;
-    ctx.fillRect(lampX - 50, lampY - 10, 100, 80);
-    ctx.fillStyle = 'rgba(255, 220, 160, 0.9)';
-    ctx.beginPath();
-    ctx.arc(lampX, lampY, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Open notebook on desk
-    ctx.fillStyle = '#f5f0e0';
-    ctx.save();
-    ctx.translate(w * 0.33, h * 0.56);
-    ctx.rotate(-0.05);
-    ctx.fillRect(0, 0, 50, 35);
-    ctx.strokeStyle = '#aaa';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0, 0, 50, 35);
-    // Writing lines
-    for (let i = 0; i < 4; i++) {
-      const lineWidth = 20 + Math.sin(time + i) * 5;
-      ctx.strokeStyle = colors[0];
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(5, 8 + i * 7);
-      ctx.lineTo(5 + lineWidth, 8 + i * 7);
-      ctx.stroke();
-    }
     ctx.restore();
-
-    // Floor light reflection
-    ctx.fillStyle = 'rgba(200, 210, 240, 0.03)';
-    ctx.fillRect(0, h * 0.7, w, h * 0.3);
+    ctx.globalAlpha = 1;
   }
 
   // ─── Helpers ──────────────────────────────────────────
 
-  _drawWobblyRect(ctx, x, y, w, h, color, t) {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    const wobble = (i) => Math.sin(t * 0.5 + i) * 1.5;
-    ctx.moveTo(x + wobble(0), y + wobble(1));
-    ctx.lineTo(x + w + wobble(2), y + wobble(3));
-    ctx.lineTo(x + w + wobble(4), y + h + wobble(5));
-    ctx.lineTo(x + wobble(6), y + h + wobble(7));
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  _drawCat(x, y, color, time) {
+  _drawBird(x, y, size, t, color) {
     const ctx = this.ctx;
-    ctx.fillStyle = color;
-    // Body
-    ctx.beginPath();
-    ctx.ellipse(x, y - 5, 18, 12, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Head
-    const headBob = Math.sin(time * 0.8) * 2;
-    ctx.beginPath();
-    ctx.arc(x + 14, y - 15 + headBob, 10, 0, Math.PI * 2);
-    ctx.fill();
-    // Ears
-    ctx.beginPath();
-    ctx.moveTo(x + 8, y - 23 + headBob); ctx.lineTo(x + 12, y - 30 + headBob); ctx.lineTo(x + 16, y - 23 + headBob);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(x + 14, y - 23 + headBob); ctx.lineTo(x + 18, y - 30 + headBob); ctx.lineTo(x + 22, y - 23 + headBob);
-    ctx.fill();
-    // Tail
+    const flap = Math.sin(t * 3) * 0.4;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.5;
     ctx.beginPath();
-    ctx.moveTo(x - 16, y - 5);
-    ctx.quadraticCurveTo(x - 28, y - 25 + Math.sin(time) * 8, x - 20, y - 30 + Math.sin(time * 1.2) * 5);
+    ctx.moveTo(x - size, y + Math.sin(flap) * size * 0.5);
+    ctx.quadraticCurveTo(x - size * 0.3, y - size * flap, x, y);
+    ctx.quadraticCurveTo(x + size * 0.3, y - size * flap, x + size, y + Math.sin(flap) * size * 0.5);
     ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 
-  _drawTree(x, y, color, time) {
-    const ctx = this.ctx;
-    // Trunk
-    ctx.fillStyle = '#6b4226';
-    ctx.fillRect(x - 4, y, 8, 40);
-    // Foliage layers
-    const sway = Math.sin(time * 0.7) * 3;
-    for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.6 + i * 0.15;
+  _drawFlowParticles() {
+    const { ctx, w, h, time } = this;
+    for (const p of this.flowParticles) {
+      // Flow field movement
+      const angle = Math.sin(p.x * 0.005 + time) * Math.PI + Math.cos(p.y * 0.005 + time * 0.7) * Math.PI;
+      p.vx += Math.cos(angle) * 0.05;
+      p.vy += Math.sin(angle) * 0.05;
+      p.vx *= 0.98;
+      p.vy *= 0.98;
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Wrap
+      if (p.x < 0) p.x = w;
+      if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = h;
+      if (p.y > h) p.y = 0;
+
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = 0.3;
       ctx.beginPath();
-      ctx.arc(x + sway * (1 - i * 0.3), y - 10 - i * 18, 22 - i * 4, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
+}
 
-  _drawCloud(x, y) {
-    const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.beginPath();
-    ctx.arc(x, y, 20, 0, Math.PI * 2);
-    ctx.arc(x + 20, y - 5, 15, 0, Math.PI * 2);
-    ctx.arc(x + 35, y, 18, 0, Math.PI * 2);
-    ctx.arc(x + 15, y + 5, 12, 0, Math.PI * 2);
-    ctx.fill();
+// ── Generating screen animation ──
+class GenAnimation {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.animId = null;
+    this.time = 0;
   }
 
-  _drawStickPerson(x, y, color) {
-    const ctx = this.ctx;
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = 2;
-    // Head
-    ctx.beginPath();
-    ctx.arc(x, y - 25, 6, 0, Math.PI * 2);
-    ctx.fill();
-    // Body
-    ctx.beginPath(); ctx.moveTo(x, y - 19); ctx.lineTo(x, y - 5); ctx.stroke();
-    // Arms
-    ctx.beginPath(); ctx.moveTo(x - 10, y - 15); ctx.lineTo(x + 10, y - 15); ctx.stroke();
-    // Legs
-    ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x - 8, y + 8); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 8, y + 8); ctx.stroke();
+  start() {
+    this.stop();
+    const rect = this.canvas.getBoundingClientRect();
+    this.canvas.width = rect.width * window.devicePixelRatio;
+    this.canvas.height = rect.height * window.devicePixelRatio;
+    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    this.w = rect.width;
+    this.h = rect.height;
+    this.time = 0;
+    this._loop();
   }
 
-  _drawParticles() {
+  stop() {
+    if (this.animId) {
+      cancelAnimationFrame(this.animId);
+      this.animId = null;
+    }
+  }
+
+  _loop() {
+    this.time += 0.02;
+    this._draw();
+    this.animId = requestAnimationFrame(() => this._loop());
+  }
+
+  _draw() {
     const { ctx, w, h, time } = this;
-    for (const p of this.particles) {
-      p.x += Math.cos(p.angle) * p.speed * 0.3;
-      p.y += Math.sin(p.angle) * p.speed * 0.3 - 0.2;
-      p.wobble += 0.02;
+    ctx.fillStyle = '#0a0a0a';
+    ctx.globalAlpha = 0.15;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
 
-      // Wrap around
-      if (p.y < -10) p.y = h + 10;
-      if (p.x < -10) p.x = w + 10;
-      if (p.x > w + 10) p.x = -10;
+    const cx = w / 2, cy = h / 2;
+    const colors = ['#e85d26', '#3d5a80', '#c2748b', '#f4a261', '#3a7d44'];
 
-      const alpha = 0.3 + Math.sin(p.wobble) * 0.2;
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = p.color;
-
-      if (p.shape === 'circle') {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        this._drawStar(p.x, p.y, p.size);
+    // Morphing shape
+    ctx.lineCap = 'round';
+    for (let ring = 0; ring < 4; ring++) {
+      ctx.beginPath();
+      ctx.strokeStyle = colors[ring % colors.length];
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.4 - ring * 0.08;
+      for (let a = 0; a < Math.PI * 2; a += 0.05) {
+        const r = 25 + ring * 12 + Math.sin(a * 3 + time * 2 + ring) * 10 + Math.cos(a * 5 - time) * 5;
+        const px = cx + Math.cos(a) * r;
+        const py = cy + Math.sin(a) * r;
+        if (a === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
       }
+      ctx.closePath();
+      ctx.stroke();
     }
     ctx.globalAlpha = 1;
-  }
-
-  _drawStar(x, y, r) {
-    const ctx = this.ctx;
-    ctx.beginPath();
-    for (let i = 0; i < 5; i++) {
-      const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
-      const method = i === 0 ? 'moveTo' : 'lineTo';
-      ctx[method](x + Math.cos(angle) * r, y + Math.sin(angle) * r);
-    }
-    ctx.closePath();
-    ctx.fill();
   }
 }
