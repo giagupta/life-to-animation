@@ -1,5 +1,5 @@
 /**
- * App controller — quiz flow, screen transitions, animations.
+ * App controller — quiz flow, screen transitions, Gemini image generation.
  */
 
 (function () {
@@ -20,12 +20,62 @@
   const resultDesc     = document.getElementById('result-description');
   const resultTraits   = document.getElementById('result-traits');
   const animCanvas     = document.getElementById('animation-canvas');
+  const aiImage        = document.getElementById('ai-image');
   const landingCanvas  = document.getElementById('landing-canvas');
   const genCanvas      = document.getElementById('gen-canvas');
+  const apiKeyInput    = document.getElementById('api-key-input');
 
   const quiz     = new Quiz();
   const renderer = new AnimationRenderer(animCanvas);
   const genAnim  = new GenAnimation(genCanvas);
+
+  // ── Gemini Image Generation ──
+  const IMAGE_PROMPTS = {
+    'cozy-room': 'A dreamy, atmospheric illustration of a person curled up reading in a cozy armchair surrounded by stacked books and warm amber light. Soft blankets, a steaming cup of tea, a cat sleeping nearby. Style: expressive gestural art, flowing ink lines, warm color palette with burnt orange and deep browns, dark moody background, mixed media collage feeling. Abstract and artistic, not photorealistic.',
+    'studio': 'An expressive illustration of a wild creative artist in a chaotic paint studio. Paint splatters everywhere, half-finished canvases, brushes and ink. Style: bold gestural strokes, abstract expressionism, vibrant colors splashing against dark background, energetic and spontaneous, mixed media collage aesthetic. Raw and artistic.',
+    'nature-path': 'A serene, atmospheric illustration of a solitary figure walking along a quiet winding path through wildflower meadows at golden hour. Birds in the distance, rolling hills. Style: gentle flowing ink lines, organic textures, earthy greens and soft golds, watercolor bleed effects, dark atmospheric background. Contemplative and peaceful.',
+    'gathering': 'A warm illustration of a group of friends gathered together on a rooftop at night with fairy lights and candles. Intimate conversation, laughter, connected energy. Style: expressive gestural art, warm sunset colors against dark night sky, flowing lines connecting the figures, mixed media collage feeling. Radiant and social.',
+    'night-room': 'An atmospheric illustration of a solitary thinker sitting at a desk by a large window at 2am, moonlight streaming in. Stars visible, notebooks and scattered papers. Style: deep midnight blues and silvers, contemplative mood, gestural ink lines, constellation-like patterns, dark and mysterious. Philosophical and introspective.'
+  };
+
+  async function generateAIImage(archetype) {
+    const apiKey = apiKeyInput.value.trim();
+    if (!apiKey) return null;
+
+    const prompt = IMAGE_PROMPTS[archetype.scene] || IMAGE_PROMPTS['cozy-room'];
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            instances: [{ prompt }],
+            parameters: {
+              sampleCount: 1,
+              aspectRatio: '3:4'
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        console.warn('Gemini API error:', err);
+        return null;
+      }
+
+      const data = await response.json();
+      if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
+        return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
+      }
+      return null;
+    } catch (err) {
+      console.warn('Image generation failed:', err);
+      return null;
+    }
+  }
 
   // ── Landing background ──
   let landingCtx, landingAnimId, landingParticles = [];
@@ -60,7 +110,6 @@
       landingCtx.fillRect(0, 0, w, h);
       landingCtx.globalAlpha = 1;
 
-      // Flowing gestural lines
       landingCtx.lineCap = 'round';
       for (let i = 0; i < 5; i++) {
         landingCtx.beginPath();
@@ -77,7 +126,6 @@
         landingCtx.stroke();
       }
 
-      // Particles
       for (const p of landingParticles) {
         p.x += p.vx;
         p.y += p.vy;
@@ -125,7 +173,6 @@
       optionsEl.appendChild(btn);
     });
 
-    // Re-trigger animation
     const body = document.querySelector('.quiz-body');
     body.style.animation = 'none';
     body.offsetHeight;
@@ -141,17 +188,28 @@
     }
   }
 
+  // ── Generating ──
+  let pendingImagePromise = null;
+
   function showGenerating() {
     showScreen('generating');
     genAnim.start();
-    setTimeout(() => {
+
+    const result = quiz.getResult();
+
+    // Start image generation immediately
+    pendingImagePromise = generateAIImage(result.archetype);
+
+    // Wait for either image generation or a minimum delay
+    const minDelay = new Promise(resolve => setTimeout(resolve, 2500));
+
+    Promise.all([pendingImagePromise, minDelay]).then(([imageUrl]) => {
       genAnim.stop();
-      showResult();
-    }, 2500);
+      showResult(result, imageUrl);
+    });
   }
 
-  function showResult() {
-    const result = quiz.getResult();
+  function showResult(result, aiImageUrl) {
     const arch = result.archetype;
 
     resultTitle.textContent = arch.name;
@@ -165,10 +223,21 @@
       resultTraits.appendChild(span);
     });
 
+    // Show AI image or fall back to canvas animation
+    if (aiImageUrl) {
+      aiImage.src = aiImageUrl;
+      aiImage.style.display = 'block';
+      animCanvas.style.display = 'none';
+      renderer.stop();
+    } else {
+      aiImage.style.display = 'none';
+      animCanvas.style.display = 'block';
+      requestAnimationFrame(() => {
+        renderer.start(result);
+      });
+    }
+
     showScreen('result');
-    requestAnimationFrame(() => {
-      renderer.start(result);
-    });
   }
 
   // ── Events ──
@@ -181,6 +250,8 @@
 
   restartBtn.addEventListener('click', () => {
     renderer.stop();
+    aiImage.style.display = 'none';
+    animCanvas.style.display = 'block';
     quiz.reset();
     showScreen('landing');
     initLandingAnimation();
@@ -191,6 +262,13 @@
       if (landingAnimId) cancelAnimationFrame(landingAnimId);
       initLandingAnimation();
     }
+  });
+
+  // Persist API key in sessionStorage
+  const savedKey = sessionStorage.getItem('gemini-api-key');
+  if (savedKey) apiKeyInput.value = savedKey;
+  apiKeyInput.addEventListener('input', () => {
+    sessionStorage.setItem('gemini-api-key', apiKeyInput.value);
   });
 
   // ── Init ──
