@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Life to Animation — Your Story, Animated</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Landing -->
+    <section id="landing" class="screen active">
+      <div class="landing-content">
+        <h1 class="title-handwritten">Life to Animation</h1>
+        <p class="subtitle">Answer a few cozy questions and watch your personality come to life in a hand-drawn animation.</p>
+        <button id="start-btn" class="btn-primary">Begin Your Story</button>
+      </div>
+      <canvas id="landing-canvas"></canvas>
+    </section>
+
+    <!-- Quiz -->
+    <section id="quiz" class="screen">
+      <div class="quiz-container">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="question-card" id="question-card">
+          <p class="question-number" id="question-number"></p>
+          <h2 class="question-text" id="question-text"></h2>
+          <div class="options" id="options"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Generating -->
+    <section id="generating" class="screen">
+      <div class="generating-content">
+        <h2 class="title-handwritten">Painting your world...</h2>
+        <div class="loading-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Result -->
+    <section id="result" class="screen">
+      <div class="result-header">
+        <h2 class="title-handwritten" id="result-title"></h2>
+        <p class="result-description" id="result-description"></p>
+      </div>
+      <canvas id="animation-canvas"></canvas>
+      <div class="result-traits" id="result-traits"></div>
+      <button id="restart-btn" class="btn-primary">Take Again</button>
+    </section>
+  </div>
+
+  <script src="quiz.js"></script>
+  <script src="animation.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
