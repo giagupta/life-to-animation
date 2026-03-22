@@ -38,50 +38,63 @@
     'night-room': 'An atmospheric illustration of a solitary thinker sitting at a desk by a large window at 2am, moonlight streaming in. Stars visible, notebooks and scattered papers. Style: deep midnight blues and silvers, contemplative mood, gestural ink lines, constellation-like patterns, dark and mysterious. Philosophical and introspective.'
   };
 
+  // Models to try for image generation, in order of preference
+  const IMAGE_MODELS = [
+    'gemini-2.0-flash-exp-image-generation',
+    'gemini-2.0-flash-exp',
+    'gemini-2.0-flash-preview-image-generation'
+  ];
+
+  async function tryGenerateWithModel(model, prompt, apiKey) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: `Generate an image: ${prompt}` }]
+          }],
+          generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE']
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.warn(`Gemini API error (${model}):`, err);
+      return null;
+    }
+
+    const data = await response.json();
+    const candidates = data.candidates;
+    if (candidates && candidates[0] && candidates[0].content && candidates[0].content.parts) {
+      for (const part of candidates[0].content.parts) {
+        if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('image/')) {
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+    }
+    return null;
+  }
+
   async function generateAIImage(archetype) {
     const apiKey = apiKeyInput.value.trim();
     if (!apiKey) return null;
 
     const prompt = IMAGE_PROMPTS[archetype.scene] || IMAGE_PROMPTS['cozy-room'];
 
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `Generate an image: ${prompt}` }]
-            }],
-            generationConfig: {
-              responseModalities: ['TEXT', 'IMAGE']
-            }
-          })
-        }
-      );
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        console.warn('Gemini API error:', err);
-        return null;
+    for (const model of IMAGE_MODELS) {
+      try {
+        const result = await tryGenerateWithModel(model, prompt, apiKey);
+        if (result) return result;
+      } catch (err) {
+        console.warn(`Image generation failed (${model}):`, err);
       }
-
-      const data = await response.json();
-      // Extract inline image data from Gemini response
-      const candidates = data.candidates;
-      if (candidates && candidates[0] && candidates[0].content && candidates[0].content.parts) {
-        for (const part of candidates[0].content.parts) {
-          if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('image/')) {
-            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-          }
-        }
-      }
-      return null;
-    } catch (err) {
-      console.warn('Image generation failed:', err);
-      return null;
     }
+    return null;
   }
 
   // ── Landing background ──
@@ -220,6 +233,7 @@
     const arch = result.archetype;
 
     resultTitle.textContent = arch.name;
+    resultTitle.setAttribute('data-text', arch.name);
     resultDesc.textContent = arch.description;
 
     resultTraits.innerHTML = '';
