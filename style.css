@@ -12,6 +12,7 @@
   --radius: 12px;
   --font: 'Space Grotesk', system-ui, sans-serif;
   --mono: 'Space Mono', monospace;
+  --pixel: 'Silkscreen', monospace;
 }
 
 html { font-size: 16px; }
@@ -60,8 +61,8 @@ body {
 }
 
 .landing-label {
-  font-family: var(--mono);
-  font-size: 0.75rem;
+  font-family: var(--pixel);
+  font-size: 0.65rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--fg-dim);
@@ -69,15 +70,45 @@ body {
 }
 
 .hero-title {
-  font-size: clamp(4rem, 15vw, 10rem);
+  font-family: var(--pixel);
+  font-size: clamp(3rem, 12vw, 7rem);
   font-weight: 700;
-  line-height: 0.9;
-  letter-spacing: -0.04em;
+  line-height: 1.0;
+  letter-spacing: -0.02em;
   margin-bottom: 1.5rem;
   background: linear-gradient(135deg, var(--fg) 0%, var(--fg-dim) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  position: relative;
+  text-shadow: none;
+}
+
+/* Pixel glitch effect on hero title */
+.hero-title::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  font-family: var(--pixel);
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  background: linear-gradient(135deg, var(--accent) 0%, rgba(232, 93, 38, 0.3) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  opacity: 0.15;
+  animation: pixelShift 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pixelShift {
+  0%, 90%, 100% { transform: translate(0, 0); opacity: 0.15; }
+  92% { transform: translate(2px, -1px); opacity: 0.3; }
+  94% { transform: translate(-1px, 2px); opacity: 0.1; }
+  96% { transform: translate(3px, 0); opacity: 0.25; }
 }
 
 .hero-sub {
@@ -143,17 +174,18 @@ body {
 
 /* ── Button ── */
 .btn-main {
-  font-family: var(--font);
-  font-size: 1rem;
-  font-weight: 600;
+  font-family: var(--pixel);
+  font-size: 0.8rem;
+  font-weight: 400;
   padding: 1rem 2.5rem;
   background: var(--fg);
   color: var(--bg);
   border: none;
-  border-radius: 50px;
+  border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .btn-main:hover {
@@ -177,8 +209,8 @@ body {
 }
 
 .quiz-counter {
-  font-family: var(--mono);
-  font-size: 0.8rem;
+  font-family: var(--pixel);
+  font-size: 0.7rem;
   color: var(--fg-dim);
   letter-spacing: 0.1em;
   white-space: nowrap;
@@ -219,10 +251,11 @@ body {
 }
 
 .question-text {
-  font-size: clamp(1.8rem, 4vw, 3rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  font-family: var(--pixel);
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
   margin-bottom: 2.5rem;
 }
 
@@ -284,8 +317,8 @@ body {
 }
 
 .gen-label {
-  font-family: var(--mono);
-  font-size: 0.85rem;
+  font-family: var(--pixel);
+  font-size: 0.75rem;
   color: var(--fg-dim);
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -332,8 +365,8 @@ body {
 }
 
 .result-label {
-  font-family: var(--mono);
-  font-size: 0.75rem;
+  font-family: var(--pixel);
+  font-size: 0.6rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--fg-dim);
@@ -341,10 +374,11 @@ body {
 }
 
 .result-title {
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-family: var(--pixel);
+  font-size: clamp(1.8rem, 5vw, 3.5rem);
   font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 0.95;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
   margin-bottom: 1.5rem;
 }
 
@@ -363,13 +397,13 @@ body {
 }
 
 .trait-tag {
-  font-family: var(--mono);
-  font-size: 0.7rem;
+  font-family: var(--pixel);
+  font-size: 0.55rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 0.4rem 1rem;
+  padding: 0.5rem 1rem;
   border: 1px solid rgba(240, 236, 228, 0.2);
-  border-radius: 50px;
+  border-radius: 4px;
   color: var(--fg-dim);
 }
 
