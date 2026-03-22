@@ -40,9 +40,8 @@
 
   // Models to try for image generation, in order of preference
   const IMAGE_MODELS = [
-    'gemini-2.0-flash-exp-image-generation',
-    'gemini-2.0-flash-exp',
-    'gemini-2.0-flash-preview-image-generation'
+    'gemini-2.5-flash-image',
+    'gemini-2.0-flash-exp-image-generation'
   ];
 
   async function tryGenerateWithModel(model, prompt, apiKey) {
