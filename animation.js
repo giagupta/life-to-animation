@@ -170,8 +170,17 @@ class AnimationRenderer {
     }
     ctx.globalAlpha = 1;
 
+    // Ink splatters around the scene
+    this._drawInkSplatters(w * 0.3, h * 0.4, w * 0.25, 8, palette.colors[0], time);
+
+    // Cross-hatching patch — like a sketchbook texture
+    this._drawCrossHatch(w * 0.65, h * 0.6, w * 0.15, h * 0.15, 6, 0.3 + Math.sin(time * 0.2) * 0.1, palette.colors[3], 0.06);
+
     // Silhouette: curled figure
     this._drawCurledSilhouette(w * 0.5, h * 0.55, time);
+
+    // Sketch overlay
+    this._drawSketchOverlay(time);
 
     // Floating dust motes
     this._drawFlowParticles();
@@ -229,8 +238,19 @@ class AnimationRenderer {
     }
     ctx.globalAlpha = 1;
 
+    // Ink splatters — chaotic studio energy
+    this._drawInkSplatters(w * 0.5, h * 0.4, w * 0.35, 15, palette.colors[1], time);
+    this._drawInkSplatters(w * 0.3, h * 0.6, w * 0.2, 8, palette.colors[0], time + 2);
+
+    // Cross-hatching — like canvas texture
+    this._drawCrossHatch(w * 0.1, h * 0.2, w * 0.2, h * 0.2, 5, -0.2, palette.colors[3], 0.07);
+    this._drawCrossHatch(w * 0.7, h * 0.7, w * 0.15, h * 0.15, 4, 0.5, palette.colors[4], 0.05);
+
     // Dancing silhouette
     this._drawDancingSilhouette(w * 0.5, h * 0.5, time);
+
+    // Sketch overlay
+    this._drawSketchOverlay(time);
 
     this._drawFlowParticles();
   }
@@ -294,6 +314,9 @@ class AnimationRenderer {
     }
     ctx.globalAlpha = 1;
 
+    // Ink splatters — scattered like wildflower seeds
+    this._drawInkSplatters(w * 0.6, h * 0.5, w * 0.2, 6, palette.colors[1], time);
+
     // Walking figure silhouette
     this._drawWalkingSilhouette(w * 0.45, h * 0.48, time);
 
@@ -303,6 +326,9 @@ class AnimationRenderer {
       const by = h * 0.2 + Math.sin(time * 0.3 + i * 2) * 15;
       this._drawBird(bx, by, 8, time + i, palette.colors[2]);
     }
+
+    // Sketch overlay
+    this._drawSketchOverlay(time);
 
     this._drawFlowParticles();
   }
@@ -385,8 +411,17 @@ class AnimationRenderer {
     }
     ctx.globalAlpha = 1;
 
+    // Ink splatters — warm energy radiating
+    this._drawInkSplatters(w * 0.5, h * 0.5, w * 0.15, 10, palette.colors[0], time);
+
+    // Cross-hatching — rooftop texture
+    this._drawCrossHatch(w * 0.05, h * 0.75, w * 0.9, h * 0.1, 7, 0, palette.colors[4], 0.04);
+
     // Group silhouette
     this._drawGroupSilhouette(w * 0.5, h * 0.55, time);
+
+    // Sketch overlay
+    this._drawSketchOverlay(time);
 
     this._drawFlowParticles();
   }
@@ -470,8 +505,17 @@ class AnimationRenderer {
     }
     ctx.globalAlpha = 1;
 
+    // Ink splatters — like ink drops on a desk
+    this._drawInkSplatters(w * 0.4, h * 0.5, w * 0.15, 6, palette.colors[1], time);
+
+    // Cross-hatching — notebook texture
+    this._drawCrossHatch(w * 0.55, h * 0.55, w * 0.2, h * 0.2, 5, 0.1, palette.colors[3], 0.05);
+
     // Seated thinking silhouette
     this._drawThinkingSilhouette(w * 0.35, h * 0.6, time);
+
+    // Sketch overlay
+    this._drawSketchOverlay(time);
 
     this._drawFlowParticles();
   }
@@ -659,6 +703,117 @@ class AnimationRenderer {
     }
 
     ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  // ─── Sketch Elements ─────────────────────────────────
+
+  /** Draw a jittery hand-drawn line between two points */
+  _sketchLine(x1, y1, x2, y2, jitter = 2) {
+    const { ctx } = this;
+    const dist = Math.hypot(x2 - x1, y2 - y1);
+    const steps = Math.max(4, Math.floor(dist / 8));
+    ctx.beginPath();
+    ctx.moveTo(x1 + (Math.random() - 0.5) * jitter, y1 + (Math.random() - 0.5) * jitter);
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const px = x1 + (x2 - x1) * t + (Math.random() - 0.5) * jitter;
+      const py = y1 + (y2 - y1) * t + (Math.random() - 0.5) * jitter;
+      ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  /** Draw cross-hatching in a rectangular area */
+  _drawCrossHatch(x, y, w, h, spacing, angle, color, alpha) {
+    const { ctx } = this;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = alpha;
+    const diag = Math.hypot(w, h) * 1.5;
+    for (let i = -diag; i < diag; i += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(i + (Math.random() - 0.5) * 1.5, -diag);
+      ctx.lineTo(i + (Math.random() - 0.5) * 1.5, diag);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  /** Draw ink splatter spots */
+  _drawInkSplatters(cx, cy, radius, count, color, t) {
+    const { ctx } = this;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + Math.sin(t * 0.3 + i) * 0.5;
+      const dist = radius * (0.3 + Math.random() * 0.7);
+      const sx = cx + Math.cos(angle) * dist;
+      const sy = cy + Math.sin(angle) * dist;
+      const r = 1 + Math.random() * 3;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.15 + Math.random() * 0.2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+      // Small drip lines from some splatters
+      if (Math.random() > 0.6) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy + r);
+        ctx.lineTo(sx + (Math.random() - 0.5) * 3, sy + r + 5 + Math.random() * 10);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Draw a scribble circle — sketchy, imperfect */
+  _drawScribbleCircle(cx, cy, radius, color, alpha) {
+    const { ctx } = this;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    for (let a = 0; a < Math.PI * 2.3; a += 0.15) {
+      const jitter = (Math.random() - 0.5) * radius * 0.15;
+      const r = radius + jitter;
+      const px = cx + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r;
+      if (a === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  /** Draw sketch overlay elements — adds hand-drawn feel to any scene */
+  _drawSketchOverlay(t) {
+    const { ctx, w, h, palette } = this;
+
+    // Floating scribble circles
+    for (let i = 0; i < 5; i++) {
+      const cx = w * (0.15 + i * 0.18) + Math.sin(t * 0.4 + i * 1.7) * 30;
+      const cy = h * 0.3 + Math.cos(t * 0.3 + i * 2.1) * h * 0.15;
+      const r = 8 + Math.sin(t * 0.5 + i) * 4;
+      this._drawScribbleCircle(cx, cy, r, palette.colors[i % palette.colors.length], 0.12);
+    }
+
+    // Random sketch marks — like pencil scratches
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 8; i++) {
+      const sx = (i * 137 + Math.sin(t * 0.2 + i) * 50) % w;
+      const sy = (i * 97 + Math.cos(t * 0.15 + i * 2) * 40) % h;
+      const len = 10 + Math.random() * 25;
+      const angle = Math.sin(t * 0.1 + i * 0.8) * Math.PI;
+      ctx.strokeStyle = palette.colors[i % palette.colors.length];
+      ctx.lineWidth = 0.5 + Math.random() * 1;
+      ctx.globalAlpha = 0.08 + Math.sin(t + i) * 0.04;
+      this._sketchLine(sx, sy, sx + Math.cos(angle) * len, sy + Math.sin(angle) * len, 1.5);
+    }
     ctx.globalAlpha = 1;
   }
 

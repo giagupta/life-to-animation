@@ -46,15 +46,16 @@
 
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            instances: [{ prompt }],
-            parameters: {
-              sampleCount: 1,
-              aspectRatio: '3:4'
+            contents: [{
+              parts: [{ text: `Generate an image: ${prompt}` }]
+            }],
+            generationConfig: {
+              responseModalities: ['TEXT', 'IMAGE']
             }
           })
         }
@@ -67,8 +68,14 @@
       }
 
       const data = await response.json();
-      if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
-        return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
+      // Extract inline image data from Gemini response
+      const candidates = data.candidates;
+      if (candidates && candidates[0] && candidates[0].content && candidates[0].content.parts) {
+        for (const part of candidates[0].content.parts) {
+          if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('image/')) {
+            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          }
+        }
       }
       return null;
     } catch (err) {
