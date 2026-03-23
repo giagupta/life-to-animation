@@ -1,19 +1,3 @@
-/* ── Local Pixel Font ── */
-@font-face {
-  font-family: 'Silkscreen';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('fonts/silkscreen-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Silkscreen';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('fonts/silkscreen-700.woff2') format('woff2');
-}
-
 /* ── Reset ── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -439,19 +423,25 @@ body {
   overflow: hidden;
 }
 
-.ai-image {
+.ai-sequence {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: none;
+}
+
+.ai-frame {
   width: 100%;
   height: 100%;
   object-fit: cover;
   position: absolute;
   inset: 0;
-  z-index: 1;
-  animation: fadeIn 0.8s ease;
+  opacity: 0;
+  transition: opacity 1.5s ease-in-out;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+.ai-frame.active {
+  opacity: 1;
 }
 
 #animation-canvas {
@@ -459,6 +449,8 @@ body {
   height: 100%;
   position: absolute;
   inset: 0;
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* ── Responsive ── */
