@@ -423,19 +423,25 @@ body {
   overflow: hidden;
 }
 
-.ai-image {
+.ai-sequence {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: none;
+}
+
+.ai-frame {
   width: 100%;
   height: 100%;
   object-fit: cover;
   position: absolute;
   inset: 0;
-  z-index: 1;
-  animation: fadeIn 0.8s ease;
+  opacity: 0;
+  transition: opacity 1.5s ease-in-out;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+.ai-frame.active {
+  opacity: 1;
 }
 
 #animation-canvas {

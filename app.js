@@ -20,7 +20,8 @@
   const resultDesc     = document.getElementById('result-description');
   const resultTraits   = document.getElementById('result-traits');
   const animCanvas     = document.getElementById('animation-canvas');
-  const aiImage        = document.getElementById('ai-image');
+  const aiSequence     = document.getElementById('ai-sequence');
+  const aiFrames       = aiSequence.querySelectorAll('.ai-frame');
   const landingCanvas  = document.getElementById('landing-canvas');
   const genCanvas      = document.getElementById('gen-canvas');
   const apiKeyInput    = document.getElementById('api-key-input');
@@ -29,13 +30,33 @@
   const renderer = new AnimationRenderer(animCanvas);
   const genAnim  = new GenAnimation(genCanvas);
 
-  // ── OpenAI Image Generation (DALL-E 3) ──
-  const IMAGE_PROMPTS = {
-    'cozy-room': 'A dreamy, atmospheric illustration of a person curled up reading in a cozy armchair surrounded by stacked books and warm amber light. Soft blankets, a steaming cup of tea, a cat sleeping nearby. Style: expressive gestural art, flowing ink lines, warm color palette with burnt orange and deep browns, dark moody background, mixed media collage feeling. Abstract and artistic, not photorealistic.',
-    'studio': 'An expressive illustration of a wild creative artist in a chaotic paint studio. Paint splatters everywhere, half-finished canvases, brushes and ink. Style: bold gestural strokes, abstract expressionism, vibrant colors splashing against dark background, energetic and spontaneous, mixed media collage aesthetic. Raw and artistic.',
-    'nature-path': 'A serene, atmospheric illustration of a solitary figure walking along a quiet winding path through wildflower meadows at golden hour. Birds in the distance, rolling hills. Style: gentle flowing ink lines, organic textures, earthy greens and soft golds, watercolor bleed effects, dark atmospheric background. Contemplative and peaceful.',
-    'gathering': 'A warm illustration of a group of friends gathered together on a rooftop at night with fairy lights and candles. Intimate conversation, laughter, connected energy. Style: expressive gestural art, warm sunset colors against dark night sky, flowing lines connecting the figures, mixed media collage feeling. Radiant and social.',
-    'night-room': 'An atmospheric illustration of a solitary thinker sitting at a desk by a large window at 2am, moonlight streaming in. Stars visible, notebooks and scattered papers. Style: deep midnight blues and silvers, contemplative mood, gestural ink lines, constellation-like patterns, dark and mysterious. Philosophical and introspective.'
+  // ── OpenAI Image Generation (DALL-E 3) — 3-stage progression ──
+  const SCENE_STAGES = {
+    'cozy-room': [
+      'A quiet, atmospheric illustration of an empty cozy armchair with stacked books and a steaming cup of tea. No person yet — just the warm space waiting. A cat sleeps nearby. Style: expressive gestural art, flowing ink lines, warm burnt orange and deep brown palette, dark moody background, mixed media collage. Abstract, not photorealistic.',
+      'A dreamy illustration of a person settling into a cozy armchair, reaching for a book. Warm amber light beginning to glow brighter. Blankets unfolding, tea steam curling upward. Style: expressive gestural art, flowing ink lines, warm palette with golden highlights emerging, dark background, mixed media collage. Slightly more movement and energy than before.',
+      'A fully alive, luminous illustration of a person deeply absorbed in reading, surrounded by floating pages and swirling warm light. The cat stretches awake, tea steam dances in spirals, golden particles drift through the air. Style: expressive gestural art, dynamic flowing ink lines, radiant warm palette, dark background with glowing embers, mixed media collage bursting with life.'
+    ],
+    'studio': [
+      'An illustration of a quiet, empty paint studio. Brushes standing in jars, blank canvases leaning against walls, tubes of paint neatly arranged. Still and waiting. Style: bold gestural strokes, muted colors against dark background, abstract expressionism, mixed media collage aesthetic. Calm before creation.',
+      'An expressive illustration of an artist picking up brushes, first splatters of paint hitting canvas. Color beginning to explode from the center. Style: bold gestural strokes, colors starting to splash and run, abstract expressionism, vibrant energy building against dark background, mixed media collage. The moment of ignition.',
+      'A wildly expressive illustration of a creative artist fully unleashed — paint flying everywhere, canvases covered in brilliant color, ink splashing, the whole studio alive with chaotic creative energy. Style: maximum gestural strokes, abstract expressionism, vibrant colors exploding against dark background, mixed media collage. Pure creative frenzy.'
+    ],
+    'nature-path': [
+      'A serene illustration of a quiet winding path through wildflower meadows at dawn. No figure yet — just the empty path, still air, soft mist. Style: gentle flowing ink lines, organic textures, muted earthy greens and pale golds, watercolor bleed effects, dark atmospheric background. Stillness before the walk.',
+      'An atmospheric illustration of a solitary figure beginning to walk along the path. Wildflowers gently swaying, a few birds lifting off. Golden hour light starting to break through. Style: gentle flowing ink lines, organic textures, earthy greens and warming golds, watercolor bleed effects, dark atmospheric background. Gentle awakening.',
+      'A luminous illustration of a figure mid-stride on the path, wildflowers blooming and bending in a gentle breeze, birds soaring across a golden sky, light pouring through everything. The landscape feels alive and breathing. Style: flowing ink lines with dynamic movement, rich earthy greens and radiant golds, watercolor bleeds spreading outward, atmospheric depth. Nature fully alive.'
+    ],
+    'gathering': [
+      'An illustration of an empty rooftop at night — fairy lights strung but dim, empty chairs arranged in a circle, candles unlit. The city glows below. Anticipation. Style: expressive gestural art, cool muted colors against dark night sky, mixed media collage. Quiet potential.',
+      'A warm illustration of friends beginning to arrive on the rooftop. First conversations starting, someone lighting candles, fairy lights warming up. Style: expressive gestural art, warm colors starting to glow against dark night sky, flowing lines beginning to connect figures, mixed media collage. Energy building.',
+      'A radiant illustration of friends fully gathered on a rooftop, deep in laughter and conversation, fairy lights blazing, candles flickering, warm energy connecting everyone. The night sky seems to pulse with their joy. Style: expressive gestural art, rich sunset colors radiating against night sky, dynamic flowing lines weaving between figures, mixed media collage bursting with warmth and connection.'
+    ],
+    'night-room': [
+      'An atmospheric illustration of an empty desk by a large window at 2am. Moonlight falls on blank notebooks and a still pen. Stars visible outside. The chair is empty. Style: deep midnight blues and silvers, still and contemplative, gestural ink lines, dark and mysterious. Waiting for thought.',
+      'An illustration of a figure sitting down at the desk, pen touching paper. First ideas forming — faint constellation-like patterns beginning to emerge from the notebooks. Moonlight brightening. Style: deep midnight blues and silvers with faint luminous traces, contemplative mood, gestural ink lines, constellation patterns starting to form. Thought awakening.',
+      'A luminous illustration of a thinker fully immersed at the desk, surrounded by swirling constellations of ideas, notebooks covered in brilliant sketches, the moonlight now blazing with creative intensity. Stars seem to pour through the window. Style: deep midnight blues and radiant silvers, dynamic gestural ink lines, constellation patterns exploding across the scene. Mind fully alive.'
+    ]
   };
 
   const MAX_RETRIES = 3;
@@ -79,17 +100,21 @@
     return null;
   }
 
-  async function generateAIImage(archetype) {
+  async function generateAISequence(archetype) {
     const apiKey = apiKeyInput.value.trim();
-    if (!apiKey) return null;
+    if (!apiKey) return [];
 
-    const prompt = IMAGE_PROMPTS[archetype.scene] || IMAGE_PROMPTS['cozy-room'];
+    const stages = SCENE_STAGES[archetype.scene] || SCENE_STAGES['cozy-room'];
 
     try {
-      return await tryGenerateWithRetry(prompt, apiKey);
+      // Fire all 3 in parallel
+      const results = await Promise.all(
+        stages.map(prompt => tryGenerateWithRetry(prompt, apiKey))
+      );
+      return results.filter(Boolean);
     } catch (err) {
-      console.warn('Image generation failed:', err);
-      return null;
+      console.warn('Image sequence generation failed:', err);
+      return [];
     }
   }
 
@@ -205,7 +230,8 @@
   }
 
   // ── Generating ──
-  let pendingImagePromise = null;
+  let pendingSequencePromise = null;
+  let crossfadeInterval = null;
 
   function showGenerating() {
     showScreen('generating');
@@ -213,19 +239,49 @@
 
     const result = quiz.getResult();
 
-    // Start image generation immediately
-    pendingImagePromise = generateAIImage(result.archetype);
+    // Start all 3 image generations in parallel
+    pendingSequencePromise = generateAISequence(result.archetype);
 
-    // Wait for either image generation or a minimum delay
+    // Wait for generation + minimum delay
     const minDelay = new Promise(resolve => setTimeout(resolve, 2500));
 
-    Promise.all([pendingImagePromise, minDelay]).then(([imageUrl]) => {
+    Promise.all([pendingSequencePromise, minDelay]).then(([imageUrls]) => {
       genAnim.stop();
-      showResult(result, imageUrl);
+      showResult(result, imageUrls);
     });
   }
 
-  function showResult(result, aiImageUrl) {
+  function startCrossfade(urls) {
+    if (crossfadeInterval) clearInterval(crossfadeInterval);
+
+    let current = 0;
+    aiFrames.forEach((frame, i) => {
+      frame.src = urls[i] || '';
+      frame.style.display = urls[i] ? 'block' : 'none';
+      frame.classList.toggle('active', i === 0);
+    });
+    aiSequence.style.display = 'block';
+
+    if (urls.length <= 1) return;
+
+    crossfadeInterval = setInterval(() => {
+      const prev = current;
+      current = (current + 1) % urls.length;
+      aiFrames[prev].classList.remove('active');
+      aiFrames[current].classList.add('active');
+    }, 4000);
+  }
+
+  function stopCrossfade() {
+    if (crossfadeInterval) {
+      clearInterval(crossfadeInterval);
+      crossfadeInterval = null;
+    }
+    aiFrames.forEach(f => { f.classList.remove('active'); f.style.display = 'none'; });
+    aiSequence.style.display = 'none';
+  }
+
+  function showResult(result, imageUrls) {
     const arch = result.archetype;
 
     resultTitle.textContent = arch.name;
@@ -240,16 +296,15 @@
       resultTraits.appendChild(span);
     });
 
-    // Show AI image with animated canvas overlay, or canvas-only fallback
-    if (aiImageUrl) {
-      aiImage.src = aiImageUrl;
-      aiImage.style.display = 'block';
+    // Show crossfading AI sequence with canvas overlay, or canvas-only fallback
+    if (imageUrls && imageUrls.length > 0) {
+      startCrossfade(imageUrls);
       animCanvas.style.display = 'block';
       requestAnimationFrame(() => {
         renderer.start(result, true);
       });
     } else {
-      aiImage.style.display = 'none';
+      stopCrossfade();
       animCanvas.style.display = 'block';
       requestAnimationFrame(() => {
         renderer.start(result, false);
@@ -269,7 +324,7 @@
 
   restartBtn.addEventListener('click', () => {
     renderer.stop();
-    aiImage.style.display = 'none';
+    stopCrossfade();
     animCanvas.style.display = 'block';
     quiz.reset();
     showScreen('landing');

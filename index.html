@@ -67,7 +67,11 @@
           <button id="restart-btn" class="btn-main">Retake &rarr;</button>
         </div>
         <div class="result-right">
-          <img id="ai-image" class="ai-image" alt="AI-generated personality art" style="display:none;">
+          <div class="ai-sequence" id="ai-sequence">
+            <img class="ai-frame" data-frame="0" alt="">
+            <img class="ai-frame" data-frame="1" alt="">
+            <img class="ai-frame" data-frame="2" alt="">
+          </div>
           <canvas id="animation-canvas"></canvas>
         </div>
       </div>
