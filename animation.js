@@ -22,9 +22,10 @@ class AnimationRenderer {
     this.flowField = [];
   }
 
-  start(result) {
+  start(result, overlay = false) {
     this.stop();
     this.time = 0;
+    this.overlay = overlay;
 
     const rect = this.canvas.getBoundingClientRect();
     this.canvas.width = rect.width * window.devicePixelRatio;
@@ -103,11 +104,19 @@ class AnimationRenderer {
   _draw() {
     const { ctx, w, h } = this;
 
-    // Fade trail
-    ctx.fillStyle = this.palette.bg;
-    ctx.globalAlpha = 0.08;
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalAlpha = 1;
+    if (this.overlay) {
+      // Transparent canvas — only draw animated elements over AI image
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      ctx.restore();
+    } else {
+      // Fade trail for standalone canvas
+      ctx.fillStyle = this.palette.bg;
+      ctx.globalAlpha = 0.08;
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = 1;
+    }
 
     switch (this.scene) {
       case 'cozy-room':   this._drawCozyDreamer(); break;

@@ -240,17 +240,19 @@
       resultTraits.appendChild(span);
     });
 
-    // Show AI image or fall back to canvas animation
+    // Show AI image with animated canvas overlay, or canvas-only fallback
     if (aiImageUrl) {
       aiImage.src = aiImageUrl;
       aiImage.style.display = 'block';
-      animCanvas.style.display = 'none';
-      renderer.stop();
+      animCanvas.style.display = 'block';
+      requestAnimationFrame(() => {
+        renderer.start(result, true);
+      });
     } else {
       aiImage.style.display = 'none';
       animCanvas.style.display = 'block';
       requestAnimationFrame(() => {
-        renderer.start(result);
+        renderer.start(result, false);
       });
     }
 
