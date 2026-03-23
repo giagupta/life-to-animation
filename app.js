@@ -1,5 +1,5 @@
 /**
- * App controller — quiz flow, screen transitions, Gemini image generation.
+ * App controller — quiz flow, screen transitions, OpenAI image generation.
  */
 
 (function () {
@@ -29,7 +29,7 @@
   const renderer = new AnimationRenderer(animCanvas);
   const genAnim  = new GenAnimation(genCanvas);
 
-  // ── Gemini Image Generation ──
+  // ── OpenAI Image Generation (DALL-E 3) ──
   const IMAGE_PROMPTS = {
     'cozy-room': 'A dreamy, atmospheric illustration of a person curled up reading in a cozy armchair surrounded by stacked books and warm amber light. Soft blankets, a steaming cup of tea, a cat sleeping nearby. Style: expressive gestural art, flowing ink lines, warm color palette with burnt orange and deep browns, dark moody background, mixed media collage feeling. Abstract and artistic, not photorealistic.',
     'studio': 'An expressive illustration of a wild creative artist in a chaotic paint studio. Paint splatters everywhere, half-finished canvases, brushes and ink. Style: bold gestural strokes, abstract expressionism, vibrant colors splashing against dark background, energetic and spontaneous, mixed media collage aesthetic. Raw and artistic.',
@@ -38,29 +38,27 @@
     'night-room': 'An atmospheric illustration of a solitary thinker sitting at a desk by a large window at 2am, moonlight streaming in. Stars visible, notebooks and scattered papers. Style: deep midnight blues and silvers, contemplative mood, gestural ink lines, constellation-like patterns, dark and mysterious. Philosophical and introspective.'
   };
 
-  const IMAGE_MODEL = 'gemini-2.5-flash-image';
   const MAX_RETRIES = 3;
 
   async function tryGenerateWithRetry(prompt, apiKey) {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `Generate an image: ${prompt}` }]
-            }],
-            generationConfig: {
-              responseModalities: ['TEXT', 'IMAGE']
-            }
-          })
-        }
-      );
+      const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'dall-e-3',
+          prompt: prompt,
+          n: 1,
+          size: '1024x1024',
+          quality: 'standard'
+        })
+      });
 
       if (response.status === 429 && attempt < MAX_RETRIES) {
-        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+        const delay = Math.pow(2, attempt + 1) * 1000;
         console.warn(`Rate limited (429), retrying in ${delay / 1000}s...`);
         await new Promise(r => setTimeout(r, delay));
         continue;
@@ -68,18 +66,13 @@
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        console.warn(`Gemini API error (${IMAGE_MODEL}):`, err);
+        console.warn('OpenAI API error:', err);
         return null;
       }
 
       const data = await response.json();
-      const candidates = data.candidates;
-      if (candidates && candidates[0] && candidates[0].content && candidates[0].content.parts) {
-        for (const part of candidates[0].content.parts) {
-          if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('image/')) {
-            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-          }
-        }
+      if (data.data && data.data[0] && data.data[0].url) {
+        return data.data[0].url;
       }
       return null;
     }
@@ -289,10 +282,10 @@
   });
 
   // Persist API key in sessionStorage
-  const savedKey = sessionStorage.getItem('gemini-api-key');
+  const savedKey = sessionStorage.getItem('openai-api-key');
   if (savedKey) apiKeyInput.value = savedKey;
   apiKeyInput.addEventListener('input', () => {
-    sessionStorage.setItem('gemini-api-key', apiKeyInput.value);
+    sessionStorage.setItem('openai-api-key', apiKeyInput.value);
   });
 
   // ── Init ──
